@@ -1,7 +1,11 @@
-from rag_project.routes.router import router
+
+
+
+from dotenv import load_dotenv
+load_dotenv(".env")
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
-
+from rag_project.routes.router import router
 
 app= FastAPI()
 
