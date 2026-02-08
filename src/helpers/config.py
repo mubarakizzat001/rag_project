@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     
     FILE_ALLOWED_TYPE:list[str]
     FILE_MAX_SIZE:int
+    FILE_DEFAULT_CHUNK_SIZE:int
 
 
     model_config=SettingsConfigDict(
@@ -18,6 +19,3 @@ class Settings(BaseSettings):
 
 def get_settings():
     return Settings()
-
-settings=get_settings()
-print(settings.FILE_ALLOWED_TYPE)
