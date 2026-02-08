@@ -1,6 +1,7 @@
 
 
-from .routes.router import router
+from .routes.router import router 
+from .routes.data import data_router
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
 
@@ -8,6 +9,7 @@ from scalar_fastapi import get_scalar_api_reference
 app= FastAPI()
 
 app.include_router(router)
+app.include_router(data_router)
 
 
 

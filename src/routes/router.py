@@ -1,14 +1,13 @@
-from ..helpers.config import get_settings
-from fastapi import APIRouter
+from ..helpers.config import get_settings,Settings
+from fastapi import APIRouter,Depends
 
-router= APIRouter()
+router= APIRouter(prefix="/welcome",tags=["welcome"])
 
 
-@router.get("/welcome")
-def welcome():
-    s_settings=get_settings()
-    app_name=s_settings.App_name
-    app_version=s_settings.App_version
+@router.get("/")
+def welcome(settings:Settings=Depends(get_settings)):
+    app_name=settings.App_name
+    app_version=settings.App_version
     return {
         "app_name": app_name,
         "app_version": app_version

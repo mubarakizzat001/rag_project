@@ -2,10 +2,12 @@ from pydantic_settings import BaseSettings,SettingsConfigDict
 
 
 
-class settings(BaseSettings):
+class Settings(BaseSettings):
     App_name:str
     App_version:str
     
+    FILE_ALLOWED_TYPE:list[str]
+    FILE_MAX_SIZE:int
 
 
     model_config=SettingsConfigDict(
@@ -15,6 +17,7 @@ class settings(BaseSettings):
     )
 
 def get_settings():
-    return settings()
+    return Settings()
 
-
+settings=get_settings()
+print(settings.FILE_ALLOWED_TYPE)
