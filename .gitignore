@@ -22,3 +22,5 @@ rad.json
 TestResults.xml
 ## Python venv rag_project
 .rag_project/
+## environment variables
+.env 
