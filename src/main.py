@@ -1,9 +1,9 @@
 
-from dotenv import load_dotenv
-load_dotenv(".env")
+
+from .routes.router import router
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
-from .routes.router import router
+
 
 app= FastAPI()
 
