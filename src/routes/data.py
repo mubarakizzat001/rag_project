@@ -27,7 +27,7 @@ async def upload_file(filename:str,file:UploadFile,
 
     project_path=ProjectController().get_project_path(project_id=filename)
 
-    file_path=DataController().generate_unique_filename(orig_filename=file.filename,project_id=filename)     
+    file_path,file_id=DataController().generate_unique_filepath(orig_filename=file.filename,project_id=filename)     
     try:
         async with aiofiles.open(file_path,"wb") as f:
             while chunk := await file.read(settings.FILE_DEFAULT_CHUNK_SIZE):
@@ -44,6 +44,7 @@ async def upload_file(filename:str,file:UploadFile,
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "message":"File uploaded successfully"
+            "message":"File uploaded successfully",
+            "file_id":file_id
         }
     )
