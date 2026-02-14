@@ -1,0 +1,19 @@
+services:
+  mongodb:
+    image: mongo:8.2.5
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb:/data/db
+    networks:
+      - rag_network
+    restart: always
+
+volumes:
+  mongodb:
+
+networks:
+  rag_network:
+
+
