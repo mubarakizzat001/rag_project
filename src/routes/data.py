@@ -1,14 +1,16 @@
+from src.models.db_schemes.chunk import data_chunk
 from ..helpers.config import get_settings,Settings
 from fastapi import APIRouter,Depends,UploadFile,status,Request
 from fastapi.responses import JSONResponse
 
+from src.models.ChunkModel import ChunkModel
 from ..controllers import DataController,ProjectController,ProcessController
 from ..models.ProjectModel import ProjectModel
 from ..models.enums.ResponseEnum import ResponseEnum
 import os
 import aiofiles
 import logging
-from .schemes.data import process_request
+from src.routes.schemes.data import process_request
 logger=logging.getLogger("uvicorn.error")
 
 data_router= APIRouter(prefix="/data",tags=["data"])
@@ -63,10 +65,19 @@ async def upload_file(request:Request,filename:str,file:UploadFile,
 
 
 @data_router.post("/process/{project_id}")
-async def process_file(project_id:str,request:process_request):
-    file_id=request.file_id
-    chunk_size=request.chunk_size
-    chunk_overlap=request.overlap_size
+async def process_file(request:Request,project_id:str,process_request:process_request):
+    file_id=process_request.file_id
+    chunk_size=process_request.chunk_size
+    chunk_overlap=process_request.overlap_size
+    do_reset=process_request.do_reset
+
+    project_model=ProjectModel(
+        db_client=request.app.state.db
+    )
+
+    project= await project_model.get_project_or_create_project(
+        project_id=project_id
+    )
 
     process_controller=ProcessController(project_id=project_id)
 
@@ -87,7 +98,37 @@ async def process_file(project_id:str,request:process_request):
             }
         )
     
-    return file_chunks
+    file_chunks_record=[
+       data_chunk(
+        chunk_text=chunk.page_content,
+        chunk_metadata=chunk.metadata,
+        chunk_order=i,
+        chunk_project_id=project.id
+       )
+
+
+        for i,chunk in enumerate(file_chunks)
+
+    ]
+
+    chunk_model = ChunkModel(
+        db_client=request.app.state.db
+    )
+    if do_reset == 1:
+        await chunk_model.delete_chunk_by_project_id(
+            project_id=project.id
+        )
+
+    no_record= await chunk_model.insert_many_chunks(file_chunks_record)
+
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message":ResponseEnum.PROCESS_SUCCESS.value,
+            "no_record":no_record
+        }
+    )
 
 
 
