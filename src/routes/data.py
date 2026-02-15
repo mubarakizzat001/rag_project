@@ -54,8 +54,7 @@ async def upload_file(request:Request,filename:str,file:UploadFile,
         status_code=status.HTTP_200_OK,
         content={
             "message":"File uploaded successfully",
-            "file_id":file_id,
-            "project_id":str(project._id)
+            "file_id":file_id
         }
     )
 
