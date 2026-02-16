@@ -9,7 +9,17 @@ class project(BaseModel):
 
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-        
+
+
+    @classmethod
+    def get_indexes(cls):
+        return [{
+            "key":[
+                ("project_id",1)
+            ],
+            "name":"index_project_id_1",
+            "unique":True
+        }]
 
 
 

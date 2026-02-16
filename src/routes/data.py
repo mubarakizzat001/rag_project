@@ -21,10 +21,10 @@ data_router= APIRouter(prefix="/data",tags=["data"])
 async def upload_file(request:Request,filename:str,file:UploadFile,
                       settings:Settings=Depends(get_settings)):
 
-    project_model=ProjectModel(
+    project_model=await ProjectModel.create_instance(
         db_client=request.app.state.db
     )
-    project= await project_model.get_project_or_create_project(
+    project= project_model.get_project_or_create_project(
         project_id=filename
     )
     is_valid,resp = DataController().validate_upload_file(file=file)
@@ -71,7 +71,7 @@ async def process_file(request:Request,project_id:str,process_request:process_re
     chunk_overlap=process_request.overlap_size
     do_reset=process_request.do_reset
 
-    project_model=ProjectModel(
+    project_model=await ProjectModel.create_instance(
         db_client=request.app.state.db
     )
 
@@ -111,7 +111,7 @@ async def process_file(request:Request,project_id:str,process_request:process_re
 
     ]
 
-    chunk_model = ChunkModel(
+    chunk_model = await ChunkModel.create_instance(
         db_client=request.app.state.db
     )
     if do_reset == 1:
