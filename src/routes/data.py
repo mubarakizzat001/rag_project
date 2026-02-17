@@ -1,4 +1,6 @@
+from src.models.enums.AssetTypeEnum import AssetTypeEnum
 from src.models.db_schemes.chunk import data_chunk
+from src.models.db_schemes.asset import Asset
 from ..helpers.config import get_settings,Settings
 from fastapi import APIRouter,Depends,UploadFile,status,Request
 from fastapi.responses import JSONResponse
@@ -6,6 +8,7 @@ from fastapi.responses import JSONResponse
 from src.models.ChunkModel import ChunkModel
 from ..controllers import DataController,ProjectController,ProcessController
 from ..models.ProjectModel import ProjectModel
+from ..models.AssetModel import AssetModel
 from ..models.enums.ResponseEnum import ResponseEnum
 import os
 import aiofiles
@@ -24,7 +27,7 @@ async def upload_file(request:Request,filename:str,file:UploadFile,
     project_model=await ProjectModel.create_instance(
         db_client=request.app.state.db
     )
-    project= project_model.get_project_or_create_project(
+    project= await project_model.get_project_or_create_project(
         project_id=filename
     )
     is_valid,resp = DataController().validate_upload_file(file=file)
@@ -51,12 +54,25 @@ async def upload_file(request:Request,filename:str,file:UploadFile,
                 "message":str(e)
             }
         )
+    asset_model=await AssetModel.create_instance(
+        db_client=request.app.state.db
+    )
+    asset_resource=Asset(
+        asset_project_id=project.id,
+        asset_type=AssetTypeEnum.FILE.value,
+        asset_name=file_id,
+        asset_size=os.path.getsize(file_path)
+
+    )
+    asset_record= await asset_model.create_asset(
+        asset=asset_resource
+    )
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             "message":"File uploaded successfully",
-            "file_id":file_id
+            "file_id":str(asset_record.id)
         }
     )
 
