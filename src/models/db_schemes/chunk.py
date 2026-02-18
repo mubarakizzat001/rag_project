@@ -8,6 +8,7 @@ class data_chunk(BaseModel):
     chunk_metadata:dict
     chunk_order:int=Field(...,ge=0)
     chunk_project_id:ObjectId
+    chunk_asset_id:ObjectId
 
 
 

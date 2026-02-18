@@ -82,7 +82,7 @@ async def upload_file(request:Request,filename:str,file:UploadFile,
 
 @data_router.post("/process/{project_id}")
 async def process_file(request:Request,project_id:str,process_request:process_request):
-    file_id=process_request.file_id
+   
     chunk_size=process_request.chunk_size
     chunk_overlap=process_request.overlap_size
     do_reset=process_request.do_reset
@@ -94,39 +94,48 @@ async def process_file(request:Request,project_id:str,process_request:process_re
     project= await project_model.get_project_or_create_project(
         project_id=project_id
     )
-
-    process_controller=ProcessController(project_id=project_id)
-
-    file_content=process_controller.get_file_content(file_id=file_id)
-
-    file_chunks=process_controller.process_file_content(
-        file_content=file_content,
-        file_id=file_id,
-        chunk_size=chunk_size,
-        overlap_size=chunk_overlap
+    project_file_ids={}
+    asset_model=await AssetModel.create_instance(
+        db_client=request.app.state.db
     )
-
-    if file_chunks is None or len(file_chunks)==0:
+    if process_request.file_id:
+        asset_record= await asset_model.get_asset_record(
+            asset_project_id=project.id,
+            asset_name=process_request.file_id
+        )
+        if asset_record is None:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "message":ResponseEnum.NO_FILE_FOUND.value
+                }
+            )
+        project_file_ids={
+            asset_record.id:asset_record.asset_name
+        }
+    else:
+        project_file_ids=await asset_model.get_all_project_assets(
+            asset_project_id=project.id,
+            asset_type=AssetTypeEnum.FILE.value
+        )
+        project_file_ids={
+            asset.id:asset.asset_name 
+            for asset in project_file_ids
+        }
+    
+    if len(project_file_ids)==0:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "message":ResponseEnum.PROCESS_ERROR.value
+                "message":ResponseEnum.NO_FILE_FOUND.value
             }
         )
-    
-    file_chunks_record=[
-       data_chunk(
-        chunk_text=chunk.page_content,
-        chunk_metadata=chunk.metadata,
-        chunk_order=i,
-        chunk_project_id=project.id
-       )
 
 
-        for i,chunk in enumerate(file_chunks)
+    process_controller=ProcessController(project_id=project_id)
 
-    ]
-
+    no_record=0
+    no_file=0
     chunk_model = await ChunkModel.create_instance(
         db_client=request.app.state.db
     )
@@ -134,15 +143,53 @@ async def process_file(request:Request,project_id:str,process_request:process_re
         await chunk_model.delete_chunk_by_project_id(
             project_id=project.id
         )
+    for asset_id,file_id in project_file_ids.items():
+        file_content=process_controller.get_file_content(file_id=file_id)
+        if file_content is None:
+            logger.error(f"File not found: {file_id}")
+            continue
+        file_chunks=process_controller.process_file_content(
+            file_content=file_content,
+            file_id=file_id,
+            chunk_size=chunk_size,
+            overlap_size=chunk_overlap
+        )
 
-    no_record= await chunk_model.insert_many_chunks(file_chunks_record)
+        if file_chunks is None or len(file_chunks)==0:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "message":ResponseEnum.PROCESS_ERROR.value
+                }
+            )
+        
+        file_chunks_record=[
+        data_chunk(
+            chunk_text=chunk.page_content,
+            chunk_metadata=chunk.metadata,
+            chunk_order=i,
+            chunk_project_id=project.id,
+            chunk_asset_id=asset_id
+        )
 
+
+            for i,chunk in enumerate(file_chunks)
+
+        ]
+
+        chunk_model = await ChunkModel.create_instance(
+            db_client=request.app.state.db
+        )
+
+        no_record+= await chunk_model.insert_many_chunks(file_chunks_record)
+        no_file+=1
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             "message":ResponseEnum.PROCESS_SUCCESS.value,
-            "no_record":no_record
+            "no_record":no_record,
+            "no_file":no_file
         }
     )
 

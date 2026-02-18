@@ -8,4 +8,5 @@ class ResponseEnum(Enum):
     
     PROCESS_SUCCESS="processing successfully"
     PROCESS_ERROR="processing error"
+    NO_FILE_FOUND="No file found"
     

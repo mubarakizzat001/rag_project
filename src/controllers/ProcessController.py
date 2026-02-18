@@ -16,13 +16,15 @@ class ProcessController(BaseController):
         return os.path.splitext(file_id)[-1]
         
     def get_file_loader(self,file_id:str):
-
+        file_ext=self.get_file_extension(file_id)
         file_path=os.path.join(
             self.project_path,
             file_id
         )
+        if not os.path.exists(file_path):
+            return None
 
-        file_ext=self.get_file_extension(file_id)
+
         if file_ext==ProcessEnum.TXT.value:
             return TextLoader(file_path,encoding="utf-8")
 
