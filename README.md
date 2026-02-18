@@ -1,15 +1,18 @@
 # RAG Project
 
-A FastAPI-based backend for a **Retrieval-Augmented Generation (RAG)** system. The project handles document upload, text extraction, chunking, and storage in MongoDB — forming the data ingestion pipeline for a RAG application.
+A FastAPI-based backend for a **Retrieval-Augmented Generation (RAG)** system. The project handles document upload, asset tracking, text extraction, intelligent chunking, and storage in MongoDB — forming the complete data ingestion pipeline for a RAG application.
 
 ## 📋 Features
 
 - **Document Upload** — Upload `.txt` and `.pdf` files with validation for type and size
+- **Asset Management** — Track uploaded files as assets in MongoDB with metadata (size, type, timestamps)
 - **Text Extraction** — Extract text content from uploaded documents using LangChain loaders (PyPDFLoader, TextLoader)
 - **Intelligent Chunking** — Split documents into overlapping chunks using LangChain's `RecursiveCharacterTextSplitter`
-- **MongoDB Storage** — Persist projects and document chunks via Motor (async MongoDB driver)
-- **Project Organization** — Files and chunks are organized per project
-- **Chunk Reset** — Option to delete existing chunks before re-processing a document
+- **Batch Processing** — Process all files in a project at once, or a single file by ID
+- **MongoDB Storage** — Persist projects, assets, and document chunks via Motor (async MongoDB driver)
+- **Automatic Index Management** — Collections and indexes are created automatically on first use
+- **Project Organization** — Files, assets, and chunks are organized per project
+- **Chunk Reset** — Option to delete existing chunks before re-processing a project
 - **Smart File Naming** — Automatic sanitization and unique filename generation to prevent collisions
 - **API Documentation** — Interactive docs via Scalar UI at `/scalar`
 - **Docker Support** — Docker Compose file for running MongoDB
@@ -110,14 +113,14 @@ Returns the application name and version.
 
 ---
 
-### `POST /data/upload/{project_id}` — Upload a File
+### `POST /data/upload/{filename}` — Upload a File
 
-Upload a document to a project. Creates the project if it doesn't exist.
+Upload a document to a project. Creates the project if it doesn't exist. The uploaded file is tracked as an **asset** in the `assets` collection with metadata such as file size, type, and timestamp.
 
 **Parameters:**
 | Parameter | Location | Description |
 |-----------|----------|-------------|
-| `project_id` | Path | Project identifier |
+| `filename` | Path | Project identifier (used both as the project name and to organize files) |
 | `file` | Form-data | The file to upload (`.txt` or `.pdf`) |
 
 **Example:**
@@ -130,9 +133,11 @@ curl -X POST "http://localhost:8000/data/upload/my_project" \
 ```json
 {
   "message": "File uploaded successfully",
-  "file_id": "aB3xYz789Klm_document.pdf"
+  "file_id": "67c1a2b3d4e5f6a7b8c9d0e1"
 }
 ```
+
+> **Note:** The `file_id` returned is the MongoDB ObjectId of the asset record, not the filename on disk.
 
 **Errors:**
 - `400` — File type not allowed or file size too large
@@ -140,9 +145,9 @@ curl -X POST "http://localhost:8000/data/upload/my_project" \
 
 ---
 
-### `POST /data/process/{project_id}` — Process & Chunk a File
+### `POST /data/process/{project_id}` — Process & Chunk Files
 
-Extract text from an uploaded file, split it into chunks, and store the chunks in MongoDB.
+Extract text from uploaded files, split into chunks, and store the chunks in MongoDB. Supports **single file** or **batch processing** of all files in a project.
 
 **Parameters:**
 | Parameter | Location | Description |
@@ -150,6 +155,8 @@ Extract text from an uploaded file, split it into chunks, and store the chunks i
 | `project_id` | Path | Project identifier |
 
 **Request Body (JSON):**
+
+#### Single File Processing
 ```json
 {
   "file_id": "aB3xYz789Klm_document.pdf",
@@ -159,23 +166,38 @@ Extract text from an uploaded file, split it into chunks, and store the chunks i
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `file_id` | string | *required* | The file ID returned from the upload endpoint |
-| `chunk_size` | int | `100` | Number of characters per chunk |
-| `overlap_size` | int | `20` | Overlap between consecutive chunks |
-| `do_reset` | int | `0` | Set to `1` to delete existing chunks for this project before inserting |
+#### Batch Processing (all project files)
+```json
+{
+  "chunk_size": 100,
+  "overlap_size": 20,
+  "do_reset": 0
+}
+```
+
+| Field | Type | Default | Required | Description |
+|-------|------|---------|----------|-------------|
+| `file_id` | string | `null` | No | The asset name of the file to process. **If omitted, all files in the project are processed.** |
+| `chunk_size` | int | `100` | No | Number of characters per chunk |
+| `overlap_size` | int | `20` | No | Overlap between consecutive chunks |
+| `do_reset` | int | `0` | No | Set to `1` to delete all existing chunks for this project before inserting |
 
 **Success (200):**
 ```json
 {
   "message": "processing successfully",
-  "no_record": 42
+  "no_record": 42,
+  "no_file": 3
 }
 ```
 
+| Response Field | Description |
+|----------------|-------------|
+| `no_record` | Total number of chunks inserted |
+| `no_file` | Number of files processed |
+
 **Errors:**
-- `400` — Processing error (empty content or unsupported format)
+- `400` — No file found, processing error, or unsupported format
 
 ---
 
@@ -184,7 +206,47 @@ Extract text from an uploaded file, split it into chunks, and store the chunks i
 Interactive API reference powered by Scalar.  
 Access at: `http://localhost:8000/scalar`
 
-## 📁 Project Structure
+## �️ Database Schema
+
+The application uses **3 MongoDB collections**, each with automatic index management:
+
+### `projects` Collection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | ObjectId | Auto-generated primary key |
+| `project_id` | string | Unique project identifier |
+
+**Indexes:** `project_id` (unique)
+
+### `assets` Collection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | ObjectId | Auto-generated primary key |
+| `asset_project_id` | ObjectId | Reference to the parent project |
+| `asset_name` | string | Unique filename (random prefix + sanitized original name) |
+| `asset_type` | string | Asset type (e.g., `"file"`) |
+| `asset_size` | int | File size in bytes |
+| `asset_config` | dict | Optional configuration metadata |
+| `asset_pushed_at` | datetime | Upload timestamp |
+
+**Indexes:** `asset_project_id` (non-unique), `asset_name` (unique)
+
+### `chunks` Collection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | ObjectId | Auto-generated primary key |
+| `chunk_text` | string | The text content of the chunk |
+| `chunk_metadata` | dict | Source metadata (file path, page number, etc.) |
+| `chunk_order` | int | Position of the chunk in the document |
+| `chunk_project_id` | ObjectId | Reference to the parent project |
+| `chunk_asset_id` | ObjectId | Reference to the source asset |
+
+**Indexes:** `chunk_project_id` (non-unique)
+
+## �📁 Project Structure
 
 ```
 rag_project/
@@ -196,11 +258,14 @@ rag_project/
 │   ├── main.py                     # App entry point & lifespan (MongoDB connection)
 │   ├── requirements.txt            # Python dependencies
 │   │
+│   ├── assets/                     # Uploaded file storage
+│   │   └── files/                  # Project directories with uploaded files
+│   │
 │   ├── routes/                     # API route handlers
 │   │   ├── router.py               # Welcome endpoint
 │   │   ├── data.py                 # Upload & Process endpoints
 │   │   └── schemes/
-│   │       └── data.py             # Request body schemas
+│   │       └── data.py             # Request body schemas (process_request)
 │   │
 │   ├── controllers/                # Business logic
 │   │   ├── BaseController.py       # Base controller (settings, random string)
@@ -211,14 +276,17 @@ rag_project/
 │   ├── models/                     # Data models & database layer
 │   │   ├── BaseDataModel.py        # Base model with DB client
 │   │   ├── ProjectModel.py         # Project CRUD operations
-│   │   ├── ChunkModel.py           # Chunk CRUD operations
+│   │   ├── AssetModel.py           # Asset CRUD operations (file tracking)
+│   │   ├── ChunkModel.py           # Chunk CRUD operations (bulk insert)
 │   │   ├── db_schemes/
 │   │   │   ├── project.py          # Project Pydantic schema
+│   │   │   ├── asset.py            # Asset Pydantic schema
 │   │   │   └── chunk.py            # Data chunk Pydantic schema
 │   │   └── enums/
 │   │       ├── DataBaseenum.py     # Collection name constants
 │   │       ├── ResponseEnum.py     # Response message constants
-│   │       └── ProcessEnum.py      # File extension constants
+│   │       ├── ProcessEnum.py      # File extension constants
+│   │       └── AssetTypeEnum.py    # Asset type constants
 │   │
 │   └── helpers/
 │       └── config.py               # Pydantic Settings configuration
