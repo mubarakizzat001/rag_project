@@ -1,6 +1,6 @@
 from pydantic import BaseModel,Field,ConfigDict
 from typing import Optional
-from bson.objectid import ObjectId
+from bson import ObjectId
 
 
 class project(BaseModel):
