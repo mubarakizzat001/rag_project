@@ -17,7 +17,10 @@ class QDrantDB(VectorInterface):
         self.logger=logging.getLogger(__name__)
         self.logger.info(f"QDrantDB initialized with distance method: {distance_method}")
     def connect(self):
-        self.client=QdrantClient(url=self.db_path)
+        if self.db_path.startswith(("http://", "https://")):
+            self.client=QdrantClient(url=self.db_path)
+            return
+        self.client=QdrantClient(path=self.db_path)
 
     def disconnect(self):
         self.client=None
@@ -62,7 +65,7 @@ class QDrantDB(VectorInterface):
                 collection_name=collection_name,
                 records=[
                 models.Record(
-                    id=[record_id],
+                    id=record_id,
                     vector=vector,
                     payload={
                         "text":text,
@@ -83,14 +86,14 @@ class QDrantDB(VectorInterface):
         batch_size:int=50
     ):
         if metadata is None:
-            metadata=[]*len(texts)
+            metadata=[None] * len(texts)
         if record_ids is None:
-            record_ids=[]*len(texts)
+            record_ids=list(range(len(texts)))
         for i in range(0,len(texts),batch_size):
-            batch_texts=texts[i:batch_size]
-            batch_vectors=vectors[i:batch_size]
-            batch_metadata=metadata[i:batch_size]
-            batch_record_ids=record_ids[i:batch_size]
+            batch_texts=texts[i:i+batch_size]
+            batch_vectors=vectors[i:i+batch_size]
+            batch_metadata=metadata[i:i+batch_size]
+            batch_record_ids=record_ids[i:i+batch_size]
             batch_records=[
                 models.Record(
                 id=batch_record_ids[x],

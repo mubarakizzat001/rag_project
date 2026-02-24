@@ -13,14 +13,20 @@ class Settings(BaseSettings):
     MONGODB_URL:str
     MONGODB_DATABASE:str
 
+    OPENAI_API_KEY:str
+    OPENAI_API_URL:str
+
+    
+    COHERE_API_KEY:str
+    
+
     GENERATION_MODEL_ID:str=None
     EMBEDDING_MODEL_ID:str=None
     EMBEDDING_MODEL_SIZE:int=None
 
-    default_input_max_charecters:int=None
-    default_output_max_tokens:int=None
-    default_temperature:float=None
-
+    INPUT_DAFAULT_MAX_CHARACTERS: int = None
+    GENERATION_DAFAULT_MAX_TOKENS: int = None
+    GENERATION_DAFAULT_TEMPERATURE: float = None
 
     GENERATION_BACKEND:str
     EMBEDDING_BACKEND:str

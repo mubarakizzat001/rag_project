@@ -1,109 +1,130 @@
 # RAG Project
 
-A FastAPI-based backend for a **Retrieval-Augmented Generation (RAG)** system. The project handles document upload, asset tracking, text extraction, intelligent chunking, and storage in MongoDB — forming the complete data ingestion pipeline for a RAG application.
+FastAPI backend for a Retrieval-Augmented Generation (RAG) pipeline.
 
-## 📋 Features
+The project currently supports:
+- Uploading files (`.txt`, `.pdf`)
+- Processing files into chunks and storing chunks in MongoDB
+- Indexing chunks into Qdrant using embedding models (Cohere/OpenAI providers)
 
-- **Document Upload** — Upload `.txt` and `.pdf` files with validation for type and size
-- **Asset Management** — Track uploaded files as assets in MongoDB with metadata (size, type, timestamps)
-- **Text Extraction** — Extract text content from uploaded documents using LangChain loaders (PyPDFLoader, TextLoader)
-- **Intelligent Chunking** — Split documents into overlapping chunks using LangChain's `RecursiveCharacterTextSplitter`
-- **Batch Processing** — Process all files in a project at once, or a single file by ID
-- **MongoDB Storage** — Persist projects, assets, and document chunks via Motor (async MongoDB driver)
-- **Automatic Index Management** — Collections and indexes are created automatically on first use
-- **Project Organization** — Files, assets, and chunks are organized per project
-- **Chunk Reset** — Option to delete existing chunks before re-processing a project
-- **Smart File Naming** — Automatic sanitization and unique filename generation to prevent collisions
-- **API Documentation** — Interactive docs via Scalar UI at `/scalar`
-- **Docker Support** — Docker Compose file for running MongoDB
+## Features
 
-## 🛠️ Tech Stack
+- FastAPI app with lifespan startup/shutdown
+- MongoDB integration via `motor`
+- File upload and project-based asset tracking
+- Chunk generation with overlap support
+- Vector indexing flow (`/nlp/nlp/{project_id}`)
+- Scalar API docs at `/scalar`
 
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | FastAPI 0.118.0 |
-| **Database** | MongoDB 8.x (via Motor 3.7.1) |
-| **Document Processing** | LangChain 1.2.10, LangChain Community 0.4.1 |
-| **Text Splitting** | LangChain Text Splitters 1.1.0 |
-| **PDF Parsing** | PyMuPDF 1.27.1 |
-| **Data Validation** | Pydantic Settings 2.12.0 |
-| **API Docs** | Scalar FastAPI 1.6.1 |
-| **Async File I/O** | aiofiles 25.1.0 |
+## Tech Stack
 
-## 📦 Installation
+- FastAPI
+- MongoDB + Motor
+- Qdrant (`qdrant-client`)
+- Cohere / OpenAI providers
+- LangChain loaders/splitters
 
-### Prerequisites
+## Project Structure
+
+```text
+rag_project/
+├── docker/
+│   └── docker-compose.yml
+├── src/
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── .env.example
+│   ├── routes/
+│   │   ├── router.py
+│   │   ├── data.py
+│   │   └── nlp.py
+│   ├── controllers/
+│   ├── models/
+│   └── stores/
+└── README.md
+```
+
+## Prerequisites
 
 - Python 3.10+
-- Docker & Docker Compose (for MongoDB)
+- MongoDB running
+- Cohere API key (if embedding backend is Cohere)
+- Qdrant connection target:
+  - Local embedded path (default style in this project), or
+  - Remote URL (example: `http://localhost:6333`)
 
-### Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd rag_project
-   ```
-
-2. **Start MongoDB**
-   ```bash
-   docker compose -f docker/docker-compose.yml up -d
-   ```
-
-3. **Create a virtual environment**
-   ```bash
-   cd src
-   python -m venv .rag_project
-   source .rag_project/bin/activate  # On Windows: .rag_project\Scripts\activate
-   ```
-
-4. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-5. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` with your settings:
-   ```env
-   APP_NAME="rag_app"
-   APP_VERSION="0.1"
-
-   FILE_ALLOWED_TYPE=["text/plain","application/pdf"]
-   FILE_MAX_SIZE=10
-   FILE_DEFAULT_CHUNK_SIZE=512000
-
-   MONGODB_URL="mongodb://localhost:27017"
-   MONGODB_DATABASE="RAG_PROJECT"
-   ```
-
-## 🚀 Running the Application
-
-### Development
+## Installation
 
 ```bash
+git clone <your-repo-url>
+cd rag_project
 cd src
+python -m venv .rag_project
+source .rag_project/bin/activate
+pip install -r requirements.txt
+```
+
+## Environment Variables
+
+Create `src/.env` from `src/.env.example` and fill values.
+
+```env
+APP_NAME="rag_app"
+APP_VERSION="0.1"
+
+FILE_ALLOWED_TYPE=["text/plain","application/pdf"]
+FILE_MAX_SIZE=10
+FILE_DEFAULT_CHUNK_SIZE=512000
+
+MONGODB_URL="mongodb://localhost:27017"
+MONGODB_DATABASE="RAG_PROJECT"
+
+GENERATION_BACKEND="OPENAI"
+EMBEDDING_BACKEND="COHERE"
+
+OPENAI_API_KEY=""
+OPENAI_API_URL=""
+COHERE_API_KEY=""
+
+GENERATION_MODEL_ID="gpt-4o-mini"
+EMBEDDING_MODEL_ID="embed-multilingual-light-v3.0"
+EMBEDDING_MODEL_SIZE=384
+
+INPUT_DAFAULT_MAX_CHARACTERS=1024
+GENERATION_DAFAULT_MAX_TOKENS=200
+GENERATION_DAFAULT_TEMPERATURE=0.1
+
+VECTOR_DB_BACKEND="QDRANT"
+VECTOR_DB_PATH="qdrant_db"
+VECTOR_DB_DISTANCE_METHOD="cosine"
+```
+
+Notes:
+- `VECTOR_DB_PATH` behavior:
+  - If it starts with `http://` or `https://`, the app treats it as remote Qdrant URL.
+  - Otherwise, it is treated as a local embedded Qdrant path under `src/assets/database/`.
+- Keep `EMBEDDING_MODEL_SIZE` aligned with your embedding model output dimension.
+
+## Run
+
+From `src/`:
+
+```bash
 fastapi dev
 ```
 
-The API will be available at `http://localhost:8000`
+- API: `http://127.0.0.1:8000`
+- Swagger: `http://127.0.0.1:8000/docs`
+- Scalar: `http://127.0.0.1:8000/scalar`
 
-### Production
+## API Endpoints
 
-```bash
-cd src
-fastapi run
-```
+### Welcome
 
-## 📚 API Endpoints
+- `GET /welcome/`
 
-### `GET /welcome/` — Application Info
+Response:
 
-Returns the application name and version.
-
-**Response:**
 ```json
 {
   "app_name": "rag_app",
@@ -111,222 +132,77 @@ Returns the application name and version.
 }
 ```
 
----
+### Upload File
 
-### `POST /data/upload/{filename}` — Upload a File
+- `POST /data/upload/{filename}`
+- Form-data: `file`
 
-Upload a document to a project. Creates the project if it doesn't exist. The uploaded file is tracked as an **asset** in the `assets` collection with metadata such as file size, type, and timestamp.
+Example:
 
-**Parameters:**
-| Parameter | Location | Description |
-|-----------|----------|-------------|
-| `filename` | Path | Project identifier (used both as the project name and to organize files) |
-| `file` | Form-data | The file to upload (`.txt` or `.pdf`) |
-
-**Example:**
 ```bash
-curl -X POST "http://localhost:8000/data/upload/my_project" \
-  -F "file=@document.pdf"
+curl -X POST "http://127.0.0.1:8000/data/upload/my_project" \
+  -F "file=@/path/to/file.pdf"
 ```
 
-**Success (200):**
+### Process Files into Chunks
+
+- `POST /data/process/{project_id}`
+
+Body:
+
 ```json
 {
-  "message": "File uploaded successfully",
-  "file_id": "67c1a2b3d4e5f6a7b8c9d0e1"
-}
-```
-
-> **Note:** The `file_id` returned is the MongoDB ObjectId of the asset record, not the filename on disk.
-
-**Errors:**
-- `400` — File type not allowed or file size too large
-- `500` — Internal upload error
-
----
-
-### `POST /data/process/{project_id}` — Process & Chunk Files
-
-Extract text from uploaded files, split into chunks, and store the chunks in MongoDB. Supports **single file** or **batch processing** of all files in a project.
-
-**Parameters:**
-| Parameter | Location | Description |
-|-----------|----------|-------------|
-| `project_id` | Path | Project identifier |
-
-**Request Body (JSON):**
-
-#### Single File Processing
-```json
-{
-  "file_id": "aB3xYz789Klm_document.pdf",
+  "file_id": "optional_file_id",
   "chunk_size": 100,
   "overlap_size": 20,
   "do_reset": 0
 }
 ```
 
-#### Batch Processing (all project files)
+- If `file_id` is omitted, all project files are processed.
+- If `do_reset=1`, existing project chunks are deleted before insert.
+
+### Index Chunks into Vector DB
+
+- `POST /nlp/nlp/{project_id}`
+
+Body:
+
 ```json
 {
-  "chunk_size": 100,
-  "overlap_size": 20,
   "do_reset": 0
 }
 ```
 
-| Field | Type | Default | Required | Description |
-|-------|------|---------|----------|-------------|
-| `file_id` | string | `null` | No | The asset name of the file to process. **If omitted, all files in the project are processed.** |
-| `chunk_size` | int | `100` | No | Number of characters per chunk |
-| `overlap_size` | int | `20` | No | Overlap between consecutive chunks |
-| `do_reset` | int | `0` | No | Set to `1` to delete all existing chunks for this project before inserting |
+This endpoint:
+- Reads project chunks from MongoDB
+- Generates embeddings
+- Creates/updates Qdrant collection
+- Inserts records into vector DB
 
-**Success (200):**
-```json
-{
-  "message": "processing successfully",
-  "no_record": 42,
-  "no_file": 3
-}
-```
+## Common Issues
 
-| Response Field | Description |
-|----------------|-------------|
-| `no_record` | Total number of chunks inserted |
-| `no_file` | Number of files processed |
+### Qdrant connection error
 
-**Errors:**
-- `400` — No file found, processing error, or unsupported format
+Error like:
+- `No address associated with hostname`
 
----
+Cause:
+- `VECTOR_DB_PATH` configured as non-URL but treated as hostname previously.
 
-### `GET /scalar` — API Documentation
+Current behavior in this project:
+- Non-URL path -> local embedded Qdrant
+- URL -> remote Qdrant server
 
-Interactive API reference powered by Scalar.  
-Access at: `http://localhost:8000/scalar`
+### Cohere embedding input_type error
 
-## �️ Database Schema
+Error like:
+- `valid input_type must be provided with the provided model`
 
-The application uses **3 MongoDB collections**, each with automatic index management:
+Ensure:
+- Cohere API key is valid
+- Embedding backend/model are configured correctly in `.env`
 
-### `projects` Collection
+## License
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Auto-generated primary key |
-| `project_id` | string | Unique project identifier |
-
-**Indexes:** `project_id` (unique)
-
-### `assets` Collection
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Auto-generated primary key |
-| `asset_project_id` | ObjectId | Reference to the parent project |
-| `asset_name` | string | Unique filename (random prefix + sanitized original name) |
-| `asset_type` | string | Asset type (e.g., `"file"`) |
-| `asset_size` | int | File size in bytes |
-| `asset_config` | dict | Optional configuration metadata |
-| `asset_pushed_at` | datetime | Upload timestamp |
-
-**Indexes:** `asset_project_id` (non-unique), `asset_name` (unique)
-
-### `chunks` Collection
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Auto-generated primary key |
-| `chunk_text` | string | The text content of the chunk |
-| `chunk_metadata` | dict | Source metadata (file path, page number, etc.) |
-| `chunk_order` | int | Position of the chunk in the document |
-| `chunk_project_id` | ObjectId | Reference to the parent project |
-| `chunk_asset_id` | ObjectId | Reference to the source asset |
-
-**Indexes:** `chunk_project_id` (non-unique)
-
-## �📁 Project Structure
-
-```
-rag_project/
-├── docker/
-│   └── docker-compose.yml          # MongoDB container
-├── src/
-│   ├── .env                        # Environment variables (not in git)
-│   ├── .env.example                # Environment template
-│   ├── main.py                     # App entry point & lifespan (MongoDB connection)
-│   ├── requirements.txt            # Python dependencies
-│   │
-│   ├── assets/                     # Uploaded file storage
-│   │   └── files/                  # Project directories with uploaded files
-│   │
-│   ├── routes/                     # API route handlers
-│   │   ├── router.py               # Welcome endpoint
-│   │   ├── data.py                 # Upload & Process endpoints
-│   │   └── schemes/
-│   │       └── data.py             # Request body schemas (process_request)
-│   │
-│   ├── controllers/                # Business logic
-│   │   ├── BaseController.py       # Base controller (settings, random string)
-│   │   ├── DataController.py       # File validation & unique naming
-│   │   ├── ProjectController.py    # Project directory management
-│   │   └── ProcessController.py    # Text extraction & chunking (LangChain)
-│   │
-│   ├── models/                     # Data models & database layer
-│   │   ├── BaseDataModel.py        # Base model with DB client
-│   │   ├── ProjectModel.py         # Project CRUD operations
-│   │   ├── AssetModel.py           # Asset CRUD operations (file tracking)
-│   │   ├── ChunkModel.py           # Chunk CRUD operations (bulk insert)
-│   │   ├── db_schemes/
-│   │   │   ├── project.py          # Project Pydantic schema
-│   │   │   ├── asset.py            # Asset Pydantic schema
-│   │   │   └── chunk.py            # Data chunk Pydantic schema
-│   │   └── enums/
-│   │       ├── DataBaseenum.py     # Collection name constants
-│   │       ├── ResponseEnum.py     # Response message constants
-│   │       ├── ProcessEnum.py      # File extension constants
-│   │       └── AssetTypeEnum.py    # Asset type constants
-│   │
-│   └── helpers/
-│       └── config.py               # Pydantic Settings configuration
-│
-├── LICENSE
-└── README.md
-```
-
-## ⚙️ Configuration
-
-All settings are managed via environment variables in `src/.env`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_NAME` | Application name | `rag_app` |
-| `APP_VERSION` | Application version | `0.1` |
-| `FILE_ALLOWED_TYPE` | Allowed MIME types (JSON list) | `["text/plain","application/pdf"]` |
-| `FILE_MAX_SIZE` | Max file size in MB | `10` |
-| `FILE_DEFAULT_CHUNK_SIZE` | Upload stream chunk size (bytes) | `512000` |
-| `MONGODB_URL` | MongoDB connection string | — |
-| `MONGODB_DATABASE` | Database name | `RAG_PROJECT` |
-
-## 🐳 Docker
-
-A Docker Compose file is provided for MongoDB:
-
-```bash
-# Start MongoDB
-docker compose -f docker/docker-compose.yml up -d
-
-# Stop MongoDB
-docker compose -f docker/docker-compose.yml down
-```
-
-MongoDB will be accessible on `localhost:27017`. Data is persisted via a named Docker volume (`mongodb`).
-
-## 📄 License
-
-Licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to submit a Pull Request.
+This project is licensed under the MIT License.

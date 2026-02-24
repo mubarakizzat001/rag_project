@@ -1,5 +1,6 @@
 
 
+from src.routes.nlp import nlp_router
 from .routes.router import router 
 from .routes.data import data_router
 from fastapi import FastAPI
@@ -22,7 +23,7 @@ async def lifespan(app: FastAPI):
     vector_provider_factory=VectorProviderFactory(settings)
     #generation client
     app.state.generation_client = llm_provider_factory.create(settings.GENERATION_BACKEND)
-    app.state.generation_client.set_generation_model(settings.GENERATION_MODEL_ID)
+    app.state.generation_client.set_generate_model(settings.GENERATION_MODEL_ID)
     #embedding client
     app.state.embedding_client = llm_provider_factory.create(settings.EMBEDDING_BACKEND)
     app.state.embedding_client.set_embedding_model(settings.EMBEDDING_MODEL_ID,settings.EMBEDDING_MODEL_SIZE)
@@ -31,14 +32,14 @@ async def lifespan(app: FastAPI):
     app.state.vector_db_client.connect()
 
     yield
-    app.state.vector_db_client.close()
+    
     app.state.db_client.close()
 
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(router)
 app.include_router(data_router)
-
+app.include_router(nlp_router)
 
 
 

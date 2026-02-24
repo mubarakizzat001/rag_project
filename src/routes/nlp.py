@@ -2,10 +2,10 @@ from src.models.ChunkModel import ChunkModel
 from src.controllers.NLPController import NLPController
 from fastapi import APIRouter,Depends,UploadFile,status,Request
 from fastapi.responses import JSONResponse
-from .router.schemes.nlp import PushRequest
+from .schemes.nlp import PushRequest
 import logging
-from models.ProjectModel import ProjectModel
-logger = logging.getLogger(uvicorn.error)
+from src.models.ProjectModel import ProjectModel
+logger = logging.getLogger("uvicorn.error")
 
 nlp_router = APIRouter(
     prefix="/nlp",
@@ -15,13 +15,13 @@ nlp_router = APIRouter(
 @nlp_router.post("/nlp/{project_id}")
 async def index_project(request:Request,project_id:str,push_request:PushRequest):
     project_model= await ProjectModel.create_instance(
-        request.app.state.db_client
+        request.app.state.db
     )
     chunk_model= await ChunkModel.create_instance(
-        request.app.state.db_client
+        request.app.state.db
     )
 
-    project = await prpject_model.get_project_or_create_project(
+    project = await project_model.get_project_or_create_project(
         project_id=project_id
     )
     
@@ -60,9 +60,9 @@ async def index_project(request:Request,project_id:str,push_request:PushRequest)
 
         is_inserted= await nlp_controller.index_into_vector_db(
             project=project,
-            chunks_ids=chunks_ids,
             chunks=records,
-            do_reset=push_request.do_reset
+            do_reset=push_request.do_reset,
+            chunks_ids=chunks_ids
         ) 
 
         if not is_inserted:
@@ -79,4 +79,3 @@ async def index_project(request:Request,project_id:str,push_request:PushRequest)
                 "message":"Project indexed successfully",
                 "inserted_items_count":inserted_items_count
             })
-

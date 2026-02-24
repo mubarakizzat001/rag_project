@@ -68,7 +68,14 @@ class CoHereProvider(LLMInterface):
             self.logger.error("embedding model not set")
             return None
 
-        input_type=DocumentType.DOCUMENT if document_type==DocumentType.DOCUMENT else DocumentType.QUERY
+        # Cohere embedding models expect search_document/search_query.
+        is_document = (
+            document_type == DocumentType.DOCUMENT
+            or document_type == DocumentType.DOCUMENT.value
+        )
+        input_type = (
+            CohereEnums.DOCUMENT.value if is_document else CohereEnums.QUERY.value
+        )
         
         response=self.client.embed(
             model=self.embedding_model_id,
@@ -76,7 +83,7 @@ class CoHereProvider(LLMInterface):
             input_type=input_type,
             embedding_types=["float"]
         )
-        if not response or not response.embeddings or response.embeddings.float:
+        if not response or not response.embeddings or not response.embeddings.float:
             self.logger.error("No response from Cohere")
             return None
         return response.embeddings.float[0]

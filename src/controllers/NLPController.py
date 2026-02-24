@@ -1,8 +1,8 @@
-from BaseController import BaseController
-from models.Project import Project
-from models.db_schemes.chunk import data_chunk
+from .BaseController import BaseController
+from src.models.db_schemes.project import project as Project
+from src.models.db_schemes.chunk import data_chunk
 from typing import List
-from stores.LLMEnums import DocumentType
+from src.stores.llm.LLMEnums import DocumentType
 class NLPController(BaseController):
     def __init__(self,vector_db_client,embedding_client,generation_client):
         super().__init__()
@@ -18,7 +18,13 @@ class NLPController(BaseController):
         collection_name=self.create_collection_name(project_id=project.id)
         collection_info=self.vector_db_client.get_collection_info(collection_name=collection_name)
         return collection_info
-    def index_into_vector_db(self,project:Project,chunks:List[data_chunk]):
+    async def index_into_vector_db(
+        self,
+        project:Project,
+        chunks:List[data_chunk],
+        do_reset:bool=False,
+        chunks_ids:List[int]|None=None
+    ):
 
         # step1: get collection name
         collection_name=self.create_collection_name(project_id=project.id)
@@ -36,11 +42,12 @@ class NLPController(BaseController):
             )
             for text in texts
         ]
+        record_ids = list(chunks_ids) if chunks_ids is not None else list(range(len(chunks)))
 
         # step3: create collection if not exists
         _=self.vector_db_client.create_collection(
             collection_name=collection_name,
-            embedding_size=self.embedding_client.embedding_size,
+            collection_size=self.embedding_client.embedding_size,
             do_reset=do_reset
         )
 
@@ -49,7 +56,8 @@ class NLPController(BaseController):
             collection_name=collection_name,
             texts=texts,
             vectors=vectors,
-            metadata=metadata   
+            metadata=metadata,
+            record_ids=record_ids
         )
         return True
     
