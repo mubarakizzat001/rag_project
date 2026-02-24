@@ -122,8 +122,8 @@ class QDrantDB(VectorInterface):
         vector:list,
         limit:int=5):
 
-        return self.client.search(
+        return self.client.query_points(
             collection_name=collection_name,
-            query_vector=vector,
+            query=vector,
             limit=limit
         )

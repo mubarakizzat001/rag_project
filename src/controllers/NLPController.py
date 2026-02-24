@@ -2,6 +2,7 @@ from .BaseController import BaseController
 from src.models.db_schemes.project import project as Project
 from src.models.db_schemes.chunk import data_chunk
 from typing import List
+import json
 from src.stores.llm.LLMEnums import DocumentType
 class NLPController(BaseController):
     def __init__(self,vector_db_client,embedding_client,generation_client):
@@ -17,7 +18,13 @@ class NLPController(BaseController):
     def get_vector_db_collection_info(self,project:Project):
         collection_name=self.create_collection_name(project_id=project.id)
         collection_info=self.vector_db_client.get_collection_info(collection_name=collection_name)
-        return collection_info
+        return json.loads(
+            json.dumps(
+                collection_info,
+                default=lambda x: x.__dict__
+            )
+        )
+
     async def index_into_vector_db(
         self,
         project:Project,
@@ -61,5 +68,42 @@ class NLPController(BaseController):
         )
         return True
     
+    async def search_vector_db_collection(
+        self,
+        project:Project,
+        text:str,
+        limit:int=10
+    ):
+
+        # step1: get collection name
+        collection_name=self.create_collection_name(project_id=project.id)
+        # step2: embed text
+        vector=self.embedding_client.embed_text(
+            text=text,
+            document_type=DocumentType.QUERY.value
+        )
+
+        if not vector:
+            return False
+        # step3: search vector db
+        results=self.vector_db_client.search_by_vector(
+            collection_name=collection_name,
+            vector=vector,
+            limit=limit
+        )
+        if not results:
+            return False
+
+        parsed_results = json.loads(
+            json.dumps(
+                results,
+                default=lambda x: x.__dict__
+            )
+        )
+
+        if not parsed_results.get("points"):
+            return False
+
+        return parsed_results
 
         
