@@ -61,10 +61,10 @@ class QDrantDB(VectorInterface):
             self.logger.error(f"I can't insert it the {collection_name} is not found")
             return False
         try:
-            _= self.client.upload_records(
+            _= self.client.upsert(
                 collection_name=collection_name,
-                records=[
-                models.Record(
+                points=[
+                models.PointStruct(
                     id=record_id,
                     vector=vector,
                     payload={
@@ -95,7 +95,7 @@ class QDrantDB(VectorInterface):
             batch_metadata=metadata[i:i+batch_size]
             batch_record_ids=record_ids[i:i+batch_size]
             batch_records=[
-                models.Record(
+                models.PointStruct(
                 id=batch_record_ids[x],
                 vector=batch_vectors[x],
                 payload={
@@ -107,9 +107,9 @@ class QDrantDB(VectorInterface):
             ]
 
             try:
-                _= self.client.upload_records(
+                _= self.client.upsert(
                     collection_name=collection_name,
-                    records=batch_records,
+                    points=batch_records,
                 )
 
             except Exception as e:
